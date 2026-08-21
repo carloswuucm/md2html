@@ -3,11 +3,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  statSync,
   watchFile,
   unwatchFile,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
+import { convertHtmlToPdf } from "./pdf.js";
 import { convertMarkdown } from "./render.js";
 import { startPreviewServer } from "./server.js";
 
@@ -20,6 +22,8 @@ Options:
   -o, --output <file>   Output HTML file.
                         Defaults to the input filename with a .html extension.
   -c, --css <file>      Use a custom CSS file instead of the built-in style.
+  --pdf                 Also convert to PDF using headless Chrome/Edge.
+                        Default output: input filename with a .pdf extension.
   -w, --watch           Watch the input file and rebuild on every change.
   -s, --serve           Serve the HTML on a local HTTP server for preview.
                         Implies --watch (live preview).
@@ -31,6 +35,7 @@ Examples:
   md2html README.md
   md2html README.md -o docs/readme.html
   md2html README.md --css style.css
+  md2html README.md --pdf
   md2html README.md --watch
   md2html README.md --serve --port 3000
 `;
@@ -39,6 +44,7 @@ interface CliOptions {
   input: string;
   output: string | undefined;
   css: string | undefined;
+  pdf: boolean;
   watch: boolean;
   serve: boolean;
   port: number | undefined;
@@ -55,6 +61,7 @@ function parseArgs(argv: string[]): ParseResult {
     input: "",
     output: undefined,
     css: undefined,
+    pdf: false,
     watch: false,
     serve: false,
     port: undefined,
@@ -93,6 +100,10 @@ function parseArgs(argv: string[]): ParseResult {
     }
     if (arg.startsWith("--css=")) {
       options.css = arg.slice("--css=".length);
+      continue;
+    }
+    if (arg === "--pdf") {
+      options.pdf = true;
       continue;
     }
     if (arg === "-p" || arg === "--port") {
@@ -134,12 +145,12 @@ function parseArgs(argv: string[]): ParseResult {
   return { ok: true, options };
 }
 
-function defaultOutputPath(inputPath: string): string {
+function defaultOutputPath(inputPath: string, extension: string): string {
   const ext = extname(inputPath).toLowerCase();
   if (ext === ".md" || ext === ".markdown") {
-    return inputPath.slice(0, -ext.length) + ".html";
+    return inputPath.slice(0, -ext.length) + extension;
   }
-  return `${inputPath}.html`;
+  return `${inputPath}${extension}`;
 }
 
 function getVersion(): string {
@@ -153,7 +164,7 @@ function getVersion(): string {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (!parsed.ok) {
     console.error(`md2html: ${parsed.error}`);
@@ -178,6 +189,12 @@ function main(): void {
     return;
   }
 
+  if (options.pdf && options.serve) {
+    console.error("md2html: --pdf cannot be combined with --serve");
+    process.exitCode = 1;
+    return;
+  }
+
   const port = options.port ?? 8080;
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     console.error("md2html: --port must be an integer between 1 and 65535");
@@ -186,7 +203,8 @@ function main(): void {
   }
 
   const inputPath = resolve(options.input);
-  const outputPath = resolve(options.output ?? defaultOutputPath(inputPath));
+  const outputExt = options.pdf ? ".pdf" : ".html";
+  const outputPath = resolve(options.output ?? defaultOutputPath(inputPath, outputExt));
 
   if (outputPath === inputPath) {
     console.error("md2html: output file must be different from the input file");
@@ -207,7 +225,7 @@ function main(): void {
 
   const timestamp = (): string => new Date().toLocaleTimeString();
 
-  const convert = (): boolean => {
+  const convert = async (): Promise<boolean> => {
     try {
       const md = readFileSync(inputPath, "utf8");
       const html = convertMarkdown(
@@ -216,8 +234,13 @@ function main(): void {
         customCss !== undefined ? { css: customCss } : {}
       );
       mkdirSync(dirname(outputPath), { recursive: true });
-      writeFileSync(outputPath, html, "utf8");
-      console.log(`${timestamp()} wrote ${outputPath} (${Buffer.byteLength(html)} bytes)`);
+      if (options.pdf) {
+        await convertHtmlToPdf(html, outputPath);
+        console.log(`${timestamp()} wrote ${outputPath} (${statSync(outputPath).size} bytes)`);
+      } else {
+        writeFileSync(outputPath, html, "utf8");
+        console.log(`${timestamp()} wrote ${outputPath} (${Buffer.byteLength(html)} bytes)`);
+      }
       return true;
     } catch (err) {
       console.error(`${timestamp()} error: ${(err as Error).message}`);
@@ -228,7 +251,7 @@ function main(): void {
   const shouldWatch = options.watch || options.serve;
 
   if (!shouldWatch) {
-    if (!convert()) process.exitCode = 1;
+    if (!(await convert())) process.exitCode = 1;
     return;
   }
 
@@ -238,14 +261,14 @@ function main(): void {
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      convert();
+      void convert();
     }, 80);
   };
 
   if (!lastExisted) {
     console.error(`${timestamp()} ${inputPath} does not exist yet; waiting for it...`);
   } else {
-    convert();
+    void convert();
   }
   console.log(`Watching ${inputPath} for changes... (press Ctrl+C to stop)`);
 
@@ -281,4 +304,7 @@ function main(): void {
   });
 }
 
-main();
+main().catch((err) => {
+  console.error(`md2html: unexpected error: ${(err as Error).message}`);
+  process.exitCode = 1;
+});

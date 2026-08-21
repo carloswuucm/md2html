@@ -67,6 +67,15 @@ blockquote {
 blockquote > p { margin: 0.6em 0; }
 img { max-width: 100%; border-radius: 4px; }
 hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+@page { size: A4; margin: 18mm 16mm; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #ffffff; color: #000000; }
+  main { max-width: none; padding: 0; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+  h1, h2, h3 { break-after: avoid-page; page-break-after: avoid; }
+  pre, blockquote, li { break-inside: avoid; page-break-inside: avoid; }
+}
 `;
 
 export interface RenderOptions {
