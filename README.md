@@ -1,6 +1,32 @@
 # md2html
 
-把 Markdown 文件转换成带简洁样式的 HTML 文件。用 TypeScript 编写，零运行时依赖。
+> Convert Markdown to styled HTML or print-ready PDF — a zero-dependency TypeScript CLI with a local web UI.
+
+**md2html** turns Markdown files into clean HTML or A4 PDFs entirely on your
+machine. The Markdown parser is built in (no runtime dependencies), and PDF
+output is produced by headless Chrome/Edge. It works both as a command-line
+tool and as a web page.
+
+## Quick start
+
+```bash
+npm install && npm run build
+node dist/cli.js input.md --pdf   # → input.pdf
+node dist/cli.js --ui             # web UI at http://localhost:8080/
+```
+
+## Highlights
+
+- Full Markdown basics: headings, paragraphs, nested lists, code blocks,
+  blockquotes, tables, links, images, emphasis
+- Built-in clean style with light/dark theme; custom CSS via `--css`
+- `--watch` auto-rebuild · `--serve` live preview · `--pdf` export ·
+  `--ui` web converter (Markdown → PDF / HTML, HTML → PDF)
+- Zero runtime dependencies, unit-tested parser
+
+---
+
+## 中文文档
 
 ## 功能
 
