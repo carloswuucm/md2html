@@ -1,0 +1,26 @@
+{
+  "name": "md2html",
+  "version": "1.0.0",
+  "description": "Convert Markdown files to styled HTML from the command line.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "md2html": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "node --input-type=module -e \"import { chmodSync } from 'node:fs'; chmodSync('dist/cli.js', 0o755);\"",
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

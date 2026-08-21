@@ -1,0 +1,72 @@
+# md2html
+
+把 Markdown 文件转换成带简洁样式的 HTML 文件。用 TypeScript 编写，零运行时依赖。
+
+## 功能
+
+- 支持标题、段落、有序 / 无序列表（含嵌套）、围栏 / 缩进代码块、引用、分割线、链接、图片、加粗、斜体、行内代码
+- 内置简洁默认样式，自动适配浅色 / 深色系统主题
+- `--watch`：监听 Markdown 文件变化，自动重新生成 HTML
+- `--css`：用自定义 CSS 替换默认样式
+- `--serve`：启动本地 HTTP 服务器预览，同时监听文件变化
+- 未指定输出文件时自动推导输出文件名
+
+## 安装
+
+要求 Node.js 18 及以上。
+
+```bash
+cd md2html
+npm install
+npm run build
+
+# 可选：链接为全局命令，之后可直接使用 md2html
+npm link
+```
+
+## 使用
+
+```bash
+md2html input.md                  # 输出 input.html
+md2html input.md -o output.html   # 指定输出文件
+md2html input.md --watch          # 监听变化，自动重新生成
+md2html input.md --css style.css  # 使用自定义样式
+md2html input.md --serve          # 启动预览服务器（默认端口 8080）
+md2html input.md --serve --port 3000
+```
+
+### 选项
+
+| 选项 | 说明 |
+| --- | --- |
+| `-o, --output <file>` | 输出 HTML 文件。默认把输入文件名的 `.md` / `.markdown` 换成 `.html`（无扩展名则直接追加 `.html`），输出目录不存在时自动创建 |
+| `-c, --css <file>` | 使用指定 CSS 文件替换内置样式，CSS 内容会被内联进生成的 HTML |
+| `-w, --watch` | 监听输入文件，改动后自动重新生成。文件被删除时会等待恢复，恢复后继续监听 |
+| `-s, --serve` | 在本地 HTTP 服务器上预览生成的 HTML，隐含 `--watch` |
+| `-p, --port <n>` | `--serve` 的端口，默认 8080；端口被占用时自动尝试后续端口 |
+| `-h, --help` | 显示帮助信息 |
+| `-v, --version` | 显示版本号 |
+
+### 预览服务器
+
+```bash
+md2html README.md --serve
+```
+
+启动后终端会打印预览地址（如 `http://localhost:8080/`），用浏览器打开即可查看。`--serve` 同时开启文件监听：修改 Markdown 并保存后 HTML 会自动重新生成，刷新浏览器即可看到更新。生成的 HTML 所在的目录就是静态资源根目录，Markdown 里相对路径引用的本地图片等资源也能正常加载。
+
+## 支持的语法
+
+- 标题（ATX `#` 与 Setext `===` / `---`）、段落
+- 有序 / 无序列表（含嵌套、懒续行与空行分隔）
+- 围栏代码块（可带语言标注）与缩进代码块
+- 引用、分割线
+- 链接、图片（含标题文字）
+- 加粗、斜体、行内代码、转义
+
+## 开发
+
+```bash
+npm run build   # 编译 TypeScript 到 dist/
+npm test        # 编译并运行解析器与服务器测试
+```
