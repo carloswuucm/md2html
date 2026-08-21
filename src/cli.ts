@@ -12,6 +12,7 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { convertHtmlToPdf } from "./pdf.js";
 import { convertMarkdown } from "./render.js";
 import { startPreviewServer } from "./server.js";
+import { startUiServer } from "./ui.js";
 
 const HELP = `md2html - convert a Markdown file to a styled HTML file
 
@@ -24,6 +25,8 @@ Options:
   -c, --css <file>      Use a custom CSS file instead of the built-in style.
   --pdf                 Also convert to PDF using headless Chrome/Edge.
                         Default output: input filename with a .pdf extension.
+  --ui                  Start a local web page for uploading Markdown and
+                        downloading it as PDF. No input file needed.
   -w, --watch           Watch the input file and rebuild on every change.
   -s, --serve           Serve the HTML on a local HTTP server for preview.
                         Implies --watch (live preview).
@@ -36,6 +39,7 @@ Examples:
   md2html README.md -o docs/readme.html
   md2html README.md --css style.css
   md2html README.md --pdf
+  md2html --ui --port 3000
   md2html README.md --watch
   md2html README.md --serve --port 3000
 `;
@@ -45,6 +49,7 @@ interface CliOptions {
   output: string | undefined;
   css: string | undefined;
   pdf: boolean;
+  ui: boolean;
   watch: boolean;
   serve: boolean;
   port: number | undefined;
@@ -62,6 +67,7 @@ function parseArgs(argv: string[]): ParseResult {
     output: undefined,
     css: undefined,
     pdf: false,
+    ui: false,
     watch: false,
     serve: false,
     port: undefined,
@@ -104,6 +110,10 @@ function parseArgs(argv: string[]): ParseResult {
     }
     if (arg === "--pdf") {
       options.pdf = true;
+      continue;
+    }
+    if (arg === "--ui") {
+      options.ui = true;
       continue;
     }
     if (arg === "-p" || arg === "--port") {
@@ -182,6 +192,36 @@ async function main(): Promise<void> {
     console.log(getVersion());
     return;
   }
+  const port = options.port ?? 8080;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error("md2html: --port must be an integer between 1 and 65535");
+    process.exitCode = 1;
+    return;
+  }
+
+  if (options.ui) {
+    if (options.serve || options.pdf || options.watch) {
+      console.error("md2html: --ui cannot be combined with --serve, --pdf or --watch");
+      process.exitCode = 1;
+      return;
+    }
+    if (options.input !== "") {
+      console.error("md2html: --ui does not take an input file");
+      process.exitCode = 1;
+      return;
+    }
+    const uiServer = startUiServer(port, (actualPort) => {
+      console.log(`md2html UI running at http://localhost:${actualPort}/`);
+      console.log("Press Ctrl+C to stop.");
+    });
+    process.on("SIGINT", () => {
+      uiServer.close();
+      console.log("\nStopped.");
+      process.exit(0);
+    });
+    return;
+  }
+
   if (!options.input) {
     console.error("md2html: missing input file");
     console.error("Run 'md2html --help' for usage.");
@@ -191,13 +231,6 @@ async function main(): Promise<void> {
 
   if (options.pdf && options.serve) {
     console.error("md2html: --pdf cannot be combined with --serve");
-    process.exitCode = 1;
-    return;
-  }
-
-  const port = options.port ?? 8080;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error("md2html: --port must be an integer between 1 and 65535");
     process.exitCode = 1;
     return;
   }

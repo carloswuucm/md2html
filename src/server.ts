@@ -64,6 +64,16 @@ export function startPreviewServer(
     res.end(body);
   });
 
+  listenWithFallback(server, port, onReady);
+
+  return server;
+}
+
+export function listenWithFallback(
+  server: Server,
+  port: number,
+  onReady: (actualPort: number) => void
+): void {
   const basePort = port;
   const tryListen = (p: number): void => {
     server.once("error", (err: NodeJS.ErrnoException) => {
@@ -79,6 +89,4 @@ export function startPreviewServer(
     });
   };
   tryListen(port);
-
-  return server;
 }
