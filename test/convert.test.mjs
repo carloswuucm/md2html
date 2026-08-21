@@ -41,6 +41,30 @@ test("indented code block", () => {
   assert.ok(parseMarkdown("    a < b").includes("<pre><code>a &lt; b</code></pre>"));
 });
 
+test("table with alignment", () => {
+  const html = parseMarkdown("| a | b |\n|:---|:---:|\n| 1 | 2 |");
+  assert.ok(html.includes("<table>"));
+  assert.ok(html.includes("<thead><tr><th"));
+  assert.ok(html.includes('<th style="text-align: left">a</th>'));
+  assert.ok(html.includes('<th style="text-align: center">b</th>'));
+  assert.ok(html.includes('<td style="text-align: left">1</td>'));
+  assert.ok(html.includes('<td style="text-align: center">2</td>'));
+  assert.ok(html.includes('style="text-align: left"'));
+  assert.ok(html.includes('style="text-align: center"'));
+});
+
+test("table without leading/trailing pipes and with inline markup", () => {
+  const html = parseMarkdown("a | b\n---|----\n**x** | `y`");
+  assert.ok(html.includes("<table>"));
+  assert.ok(html.includes("<strong>x</strong>"));
+  assert.ok(html.includes("<code>y</code>"));
+});
+
+test("pipe characters do not create a table without a delimiter row", () => {
+  const html = parseMarkdown("a | b\nc | d");
+  assert.ok(!html.includes("<table>"));
+});
+
 test("links and images", () => {
   const html = parseMarkdown('[text](https://example.com) and ![alt](img.png "t")');
   assert.ok(html.includes('<a href="https://example.com">text</a>'));

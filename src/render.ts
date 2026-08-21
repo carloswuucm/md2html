@@ -67,14 +67,40 @@ blockquote {
 blockquote > p { margin: 0.6em 0; }
 img { max-width: 100%; border-radius: 4px; }
 hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+  font-size: 0.95em;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--code-bg); font-weight: 600; }
+tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--code-bg) 55%, transparent);
+}
 @page { size: A4; margin: 18mm 16mm; }
 @media print {
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --fg: #000000;
+    --muted: #444444;
+    --border: #bbbbbb;
+    --code-bg: #f4f4f4;
+  }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { background: #ffffff; color: #000000; }
   main { max-width: none; padding: 0; }
   pre { white-space: pre-wrap; word-break: break-word; }
   h1, h2, h3 { break-after: avoid-page; page-break-after: avoid; }
   pre, blockquote, li { break-inside: avoid; page-break-inside: avoid; }
+  table { font-size: 0.85em; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
 }
 `;
 

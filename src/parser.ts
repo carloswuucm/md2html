@@ -122,6 +122,14 @@ export function parseMarkdown(md: string): string {
       continue;
     }
 
+    // Table (GFM style: header row + delimiter row, e.g. "| a | b |" / "|---|:---:|").
+    if (isTableStart(lines, i)) {
+      const result = parseTable(lines, i);
+      out.push(result.html);
+      i = result.next;
+      continue;
+    }
+
     // Paragraph.
     const para: string[] = [];
     while (i < lines.length) {
@@ -132,6 +140,7 @@ export function parseMarkdown(md: string): string {
       if (next !== undefined && (/^=+\s*$/.test(next) || /^-+\s*$/.test(next))) {
         break;
       }
+      if (isTableStart(lines, i)) break;
       para.push(l.trim());
       i++;
     }
@@ -251,6 +260,72 @@ function renderItem(content: string[], loose: boolean): string {
     }
   }
   return html;
+}
+
+function isTableStart(lines: string[], i: number): boolean {
+  const header = lines[i];
+  const delimiter = lines[i + 1];
+  if (header === undefined || delimiter === undefined) return false;
+  if (!header.includes("|") || !delimiter.includes("|")) return false;
+  return isDelimiterRow(delimiter);
+}
+
+function isDelimiterRow(line: string): boolean {
+  const cells = splitTableRow(line);
+  return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell.trim()));
+}
+
+function splitTableRow(row: string): string[] {
+  const cells = row.trim().split(/(?<!\\)\|/);
+  if (cells.length > 1) {
+    if (cells[0].trim() === "") cells.shift();
+    if (cells[cells.length - 1].trim() === "") cells.pop();
+  }
+  return cells.map((cell) => cell.replace(/\\\|/g, "|"));
+}
+
+function parseTable(lines: string[], start: number): { html: string; next: number } {
+  const headerCells = splitTableRow(lines[start]);
+  const aligns = splitTableRow(lines[start + 1]).map((cell) => {
+    const t = cell.trim();
+    if (t.startsWith(":") && t.endsWith(":")) return "center" as const;
+    if (t.endsWith(":")) return "right" as const;
+    if (t.startsWith(":")) return "left" as const;
+    return null;
+  });
+
+  const rows: string[][] = [];
+  let i = start + 2;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (l.trim() !== "" && l.includes("|")) {
+      rows.push(splitTableRow(l));
+      i++;
+    } else {
+      break;
+    }
+  }
+
+  const cell = (tag: "th" | "td", text: string, align: string | null, index: number): string => {
+    const style = align !== null ? ` style="text-align: ${align}"` : "";
+    return `<${tag}${style}>${renderInline(text.trim())}</${tag}>`;
+  };
+  const head = headerCells
+    .map((text, index) => cell("th", text, aligns[index] ?? null, index))
+    .join("");
+  const body = rows
+    .map((row) => {
+      const tds = headerCells
+        .map((_, index) => cell("td", row[index] ?? "", aligns[index] ?? null, index))
+        .join("");
+      return `<tr>${tds}</tr>`;
+    })
+    .join("");
+
+  return {
+    html: `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`,
+    next: i,
+  };
 }
 
 function renderCodeBlock(code: string, lang: string): string {
